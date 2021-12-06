@@ -1,0 +1,100 @@
+	
+1)Api for USER Service
+
+/* This Service will take care of followin tasks
+1)Update userscore (highscore,levels) 
+2)Update leaderboard cache on globalCache Service 
+3)Update users login logout time
+4)Sent all cached data to client(leaderBoard,clanBoard)
+5)Genarate user login spikes log (To generate pattern for AutoScaling via Load Balancer) 
+*/
+
+* @EnableEurekaServer to Register Service Registry
+
+@GetMapping("/getLeaderBoard")
+	public Model getLeaderBoard(){
+		return globalCache.getLeaderBoard();
+	}
+
+@PostMapping("/updateLoginLogoutTime")
+	public Model updateLoginTime(@RequestBody UserLog userLog){
+		  userLogService.updateLoginLogoutTime();
+		  //to generate pattern for user spikes.
+		return HTTPSTATUS.OK;
+	}
+
+@PostMapping("/updateUserScore")
+	public Model updateUserScore(@RequestBody UserScore userScore){
+		userScore.updateUserScore();
+		//compare usersocre with cache if usersocre is in top 10 refresh global cache
+		
+	}
+	
+	
+@ControllerAdvice	
+@ExceptionHandler(value = UserNotFound.class)
+    
+@ExceptionHandler(value=InvalidRequest.class)
+    public ResponseEntity<Object> exceptiom(InvalidRequest invalidRequest){
+        return new ResponseEntity<>("Invalid Input",HttpStatus.BAD_REQUEST);
+
+}	
+	
+
+2)Api for User Mapping Service
+
+* @EnableEurekaServer to Register Service Registry
+
+/* This Service will take care of followin tasks
+1)Add Remove friends
+2)Consider there are many game product where clan or group can be maintain using 
+3)This service will saparate usermapping concern and provide more scalablity for others game and mapping as well. */
+
+@PostMapping("/addFriend")
+	public Model addFriend(@RequestBody FriendMap friendMap){
+		return friendMapService.addFriend(friendMap);
+	}
+
+@DeleteMapping("/removeFriend")
+	public Model addFriend(@RequestBody FriendMap friendMap){
+		return friendMapService.removeFriend(friendMap);
+	}
+
+	
+3)Api for  GlobalCache Service
+
+
+/* This Service will take care of followin tasks
+1)This service will maintain all type of global cache.
+2)This service will consume data from any service/instance and update globalCache
+2)It will produce kafka event to consume latest cache for all services/instance. */
+
+
+@PostMapping("/refreshLeaderBoard")
+ public Model refreshLeaderBoard(@RequestBody LeaderBoard leaderBoard){
+	leaderBoardService.refreshLeaderBoard();
+	//Refresh Cache and produce event to kafka for refreshing leaderBoard cache to all instance of User Service.
+	}
+
+
+
+4) Api for API Gateway
+
+/*This Service will take care of followin tasks
+1)This service will provide dynamic URL mapping for all other services/instance(To handle concurrency and spikes )
+2)It will maintain all Scalabale instance with registered url.
+3)It will provide tiny URL mapping for user to subscribe or install new games(Promotional SMS)
+4)It will provide Circuit breaker for services in case any service get failed. */
+
+@Bean
+public RouteLocator myRoutes(RouteLocatorBuilder builder) {
+    return builder.routes()....
+	}
+
+@EnableHystrixDashboard
+@EnableCircuitBreaker
+//Enable circuit breaker for all Services
+
+
+
+ALL SERVICES WILL HAVE GLOBAL EXCEPTION HANDLER WITH CUSTOM ERROR MASSAGES.
